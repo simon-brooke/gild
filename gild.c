@@ -15,6 +15,8 @@
 *                                                                       *
 \***********************************************************************/
 
+/* $Header$ */
+
 #include "gild.h"
 
 int port = DEFAULT_PORT_NO;	/* the port I shall listen on */
@@ -27,11 +29,11 @@ FILE * logstream = stderr;	/* where I stick log messages */
 void error( int severity)
 /* log the current contents of errorBuff and then if severity is bad die */
 {
-     fprintf( logstream, "%s\n", errorBuff);
+     log( severity, errorBuff);
 
      switch ( severity)
      {
-     case FATAL_ERROR:
+     case LOG_ERR:
 	  exit( 1);
 	  break;
      }
@@ -48,7 +50,7 @@ int main( int argc, char * argv[])
 				/* the address I bind the keyhole to */
 
      sprintf( errorBuff, "GILD starting...");
-     error( NOTICE);
+     error( LOG_NOTICE);
 
      for ( arg = 1; argc > arg; arg ++)
      {				/* process arguments */
@@ -69,7 +71,7 @@ int main( int argc, char * argv[])
 		    sprintf( errorBuff, 
 			    "unrecognised command line switch [-%c]",
 			    argv[ arg][ 1]);
-		    error( FATAL_ERROR);
+		    error( LOG_ERR);
 		    break;
 	       }
 	  default:
@@ -81,14 +83,14 @@ int main( int argc, char * argv[])
      if ( parse_config( configPath) == 0)
      {
 	  sprintf( errorBuff, "failed to load any handlers");
-	  error( FATAL_ERROR);
+	  error( LOG_ERR);
      }
 
      keyhole = socket( AF_INET, SOCK_STREAM, 0);
      if ( keyhole == -1)
      {
 	  sprintf( errorBuff, "failed to intialise socket");
-	  error( FATAL_ERROR);
+	  error( LOG_ERR);
      }
 
      memset( address, 0, sizeof( address));
@@ -107,7 +109,7 @@ int main( int argc, char * argv[])
 	       sizeof( struct sockaddr_in)) == -1)
      {				/* attempt to bind keyhole to address */
 	  sprintf( errorBuff, "failed to bind socket");
-	  error( FATAL_ERROR);
+	  error( LOG_ERR);
      }
 
 #ifndef DEBUG
@@ -120,10 +122,10 @@ int main( int argc, char * argv[])
      if ( listen( keyhole, MAX_PENDING_REQUESTS) == -1)
      {
 	  sprintf( errorBuff, "failed in listen()?");
-	  error( FATAL_ERROR);
+	  error( LOG_ERR);
      }
      sprintf( errorBuff, "GILD: awaiting requests on port %d", port);
-     error( NOTICE);
+     error( LOG_NOTICE);
 
      for ever
      {
@@ -137,7 +139,7 @@ int main( int argc, char * argv[])
 	  if ( client == 0)
 	  {			/* unlikely, but might as well check... */
 	       sprintf( errorBuff, "Out of memory?");
-	       error( FATAL_ERROR);
+	       error( LOG_ERR);
 	  }
 	  memset( client, 0, sizeof( client));
 				/* sanitation */
@@ -149,17 +151,17 @@ int main( int argc, char * argv[])
 	  {			/* again, check we set it up OK */
 	       sprintf( errorBuff, "Could not establish conversation [%d]",
 		       errno);
-	       error( FATAL_ERROR);
+	       error( LOG_ERR);
 	  }
 
 	  sprintf( errorBuff, "Connection received");
-	  error( NOTICE);
+	  error( LOG_NOTICE);
 
 	  switch( fork())
 	  {
 	  case -1:		/* Blew it: whinge and die */
 	       sprintf( errorBuff, "failed to fork?");
-	       error( FATAL_ERROR);
+	       error( LOG_ERR);
 	       break;
 	  case 0:		/* I'm the child */
 	       close( keyhole);

@@ -42,7 +42,7 @@ void wrapper( int conversation)
 	  sprintf( errorBuff, 
 		  "failed to duplicate conversation [%d] onto stdin: %s",
 		  conversation, strerror( errno));
-	  error( FATAL_ERROR);
+	  error( LOG_ERR);
      }
 
      if ( dup2( conversation, STDOUT_FILENO) == -1)
@@ -50,15 +50,15 @@ void wrapper( int conversation)
 	  sprintf( errorBuff, 
 		  "failed to duplicate conversation [%d] onto stdout: %s",
 		  conversation, strerror( errno));
-	  error( FATAL_ERROR);
+	  error( LOG_ERR);
      }
 
      command = get_handler_command( firstln);
 				/* and find the appropriate handler */
-     if ( ! command)	/* didn't find one */
+     if ( ! command)		/* didn't find one */
      {
 	  sprintf( errorBuff, "no handler registered for %s", firstln);
-	  error( FATAL_ERROR);
+	  error( LOG_ERR);
      }
      else			/* did find one */
      {
