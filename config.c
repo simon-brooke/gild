@@ -26,7 +26,7 @@ int parse_config( char * path)
      int n = 0;			/* number of handlers we find */
 
      sprintf( errorBuff, "Loading configuration from %s", path);
-     error( NOTICE);
+     error( LOG_NOTICE);
 
      configFile = fopen( path, "r");
 
@@ -34,19 +34,21 @@ int parse_config( char * path)
      {
 	  sprintf( errorBuff, "failed to open configuration file %s: %s",
 		  path, strerror( errno));
-	  error( FATAL_ERROR);
+	  error( LOG_ERR);
      }
 
      while( ! feof( configFile))
      {
 	  char buff[ 1024], protocol[ 1024], pattern[ 1024], command[ 1024];
+	  int timeout;		/* how long to wait for the handler to
+	  			   complete */
 	  
 	  fgets( buff, 1024, configFile);
 				/* get a line from the config file */
 	  if ( buff[ 0] == '#');
 				/* it's a comment, and can be ignored */
-	  else if ( fscanf( configFile, "%s %s %s", protocol,
-		      pattern, command) == 3)
+	  else if ( fscanf( configFile, "%s %s %s %d", protocol,
+		      pattern, command, &timeout) == 4)
 				/* otherwise look for four fields. If
                                    we find them... */
 	  {
@@ -62,7 +64,7 @@ int parse_config( char * path)
 	       {		/* unlikely, but... best check */
 		    sprintf( errorBuff, 
 			    "out of memory whilst allocating handler?");
-		    error( FATAL_ERROR);
+		    error( LOG_ERR);
 	       }
 
 	       regcomp( patternBuff, pattern, 
@@ -71,6 +73,8 @@ int parse_config( char * path)
 	       newhandler->protocol = strdup( protocol);
 	       newhandler->pattern = patternBuff;
 	       newhandler->command = strdup( command);
+	       newhandler->timeout = timeout;
+
 				/* then splice it into the handler chain */
 	       newhandler->next = handlers;
 	       handlers = newhandler;
@@ -81,28 +85,27 @@ int parse_config( char * path)
 	       sprintf( errorBuff, 
 		       "registering handler [%s] for protocol %s", 
 		       newhandler->command, newhandler->protocol);
-	       error( NOTICE);
+	       error( LOG_NOTICE);
 	  }
      }
      return ( n);		/* say how many we found */
 }
 
-char * get_handler_command( char * match)
+handler * get_handler( char * match)
 /* find a handler whose pattern matches match, and return it's command */
 {
-     handler * h;
-     char * command = null;
+     handler * h = null, * i;
      regmatch_t pmatch[ 2];
 
-     for ( h = handlers; ( command == null) && ( h != null); h = h->next)
+     for ( i = handlers; ( h == null) && ( i != null); i = i->next)
 				/* scan down the list of handlers looking
 				   for a match... */
      {
-	  if ( regexec( h->pattern, match, 2, pmatch, 0) == 0)
+	  if ( regexec( i->pattern, match, 2, pmatch, 0) == 0)
 	  {
-	       command = h->command;
+	       h = i;
 	  }
      }
 
-     return( command);
+     return( h);
 }

@@ -16,9 +16,17 @@
 
 #include "gild.h"
 
-extern char * errorBuff;
+char errorBuff[ 1024];
 
-void wrapper( int conversation)
+void die( void)			/* inherited from cgi-lib; a way of
+				   getting rid of errant programs */
+{
+     sprintf( errorBuff, "potentially serious: handler over-ran alloted time");
+     error( LOG_ERR);
+}
+
+
+void wrapper( int conversation, char * client_id)
 /* conversation is the handle on an open socket communicating with a
    client. What I want to do is quite simple, and there must be a
    straightforward way of doing it: attach the conversation to both
@@ -27,10 +35,7 @@ void wrapper( int conversation)
    an easy way of doing that, however */
 {
      char firstln[ 1024];
-     char * command;
-
-     printf( "wrapper started with fdes [%d]\n",
-		  conversation); 
+     handler * command = null;
 
      recv( conversation, firstln, 80, MSG_PEEK);
 				/* get the first thing the client
@@ -53,16 +58,34 @@ void wrapper( int conversation)
 	  error( LOG_ERR);
      }
 
-     command = get_handler_command( firstln);
+     command = get_handler( firstln);
 				/* and find the appropriate handler */
-     if ( ! command)		/* didn't find one */
+     if ( command == null)	/* didn't find one */
      {
 	  sprintf( errorBuff, "no handler registered for %s", firstln);
 	  error( LOG_ERR);
      }
      else			/* did find one */
      {
-	  system( command);
+	  sprintf( errorBuff, 
+		  "using handler '%s' to handle %s request from %s", 
+		  command->command, command->protocol, client_id);
+	  error( LOG_NOTICE);
+				/* log the request */
+
+	  if ( command->timeout != 0)
+				/* prevent runaway processes; if a
+				 timeout has been specified for this
+				 handler, enforce it */
+	  {
+	       signal( SIGALRM,(void (*)())die);
+	       alarm( command->timeout);
+	  } 
+
+	  setenv( "REMOTE_HOST", client_id, 1);
+				/* set up the handler environment */
+
+	  system( command->command);
      }
 
      exit( 0);

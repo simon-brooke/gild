@@ -49,8 +49,7 @@ int main( int argc, char * argv[])
 	  ( struct sockaddr_in *)malloc( sizeof( struct sockaddr_in));
 				/* the address I bind the keyhole to */
 
-     sprintf( errorBuff, "GILD starting...");
-     error( LOG_NOTICE);
+     fprintf( stderr, "%s starting...", GILD_ID);
 
      for ( arg = 1; argc > arg; arg ++)
      {				/* process arguments */
@@ -68,29 +67,31 @@ int main( int argc, char * argv[])
 		    port = atoi( argv[ arg]);
 		    break;
 	       default:
-		    sprintf( errorBuff, 
+		    fprintf( stderr, 
 			    "unrecognised command line switch [-%c]",
 			    argv[ arg][ 1]);
-		    error( LOG_ERR);
+		    exit( 1);
 		    break;
 	       }
+	       break;
 	  default:
-	       sprintf( errorBuff, "unrecognised command line token [%s]",
+	       fprintf( stderr, "unrecognised command line token [%s]",
 		       argv[ arg]);
+	       exit( 1);
 	  }
      }
 
      if ( parse_config( configPath) == 0)
      {
-	  sprintf( errorBuff, "failed to load any handlers");
-	  error( LOG_ERR);
+	  fprintf( stderr, "failed to load any handlers");
+	  exit( 1);
      }
 
      keyhole = socket( AF_INET, SOCK_STREAM, 0);
      if ( keyhole == -1)
      {
-	  sprintf( errorBuff, "failed to intialise socket");
-	  error( LOG_ERR);
+	  fprintf( stderr, "failed to intialise socket");
+	  exit( 1);
      }
 
      memset( address, 0, sizeof( address));
@@ -108,8 +109,8 @@ int main( int argc, char * argv[])
      if ( bind( keyhole, ( struct sockaddr *)address, 
 	       sizeof( struct sockaddr_in)) == -1)
      {				/* attempt to bind keyhole to address */
-	  sprintf( errorBuff, "failed to bind socket");
-	  error( LOG_ERR);
+	  fprintf( stderr, "failed to bind socket");
+	  exit( 1);
      }
 
 #ifndef DEBUG
@@ -124,7 +125,7 @@ int main( int argc, char * argv[])
 	  sprintf( errorBuff, "failed in listen()?");
 	  error( LOG_ERR);
      }
-     sprintf( errorBuff, "GILD: awaiting requests on port %d", port);
+     sprintf( errorBuff, "started; awaiting requests on port %d", port);
      error( LOG_NOTICE);
 
      for ever
@@ -132,6 +133,8 @@ int main( int argc, char * argv[])
 	  struct sockaddr_in * client = 
 	       ( struct sockaddr_in *) malloc( sizeof( struct sockaddr_in));
 				/* the address of the client calling in */
+	  char * client_addr = null;	
+				/* the network address of the client */
 	  int conversation;	/* a handle on the conversation we're having */
 	  int clientsize = sizeof( struct sockaddr_in);
 				/* the size of the client object */
@@ -147,15 +150,15 @@ int main( int argc, char * argv[])
 	  conversation = accept( keyhole, ( struct sockaddr *)client, 
 				&clientsize);
 
+	  client_addr = strdup( inet_ntoa( client->sin_addr));
+
+
 	  if ( conversation == -1)
 	  {			/* again, check we set it up OK */
 	       sprintf( errorBuff, "Could not establish conversation [%d]",
 		       errno);
 	       error( LOG_ERR);
 	  }
-
-	  sprintf( errorBuff, "Connection received");
-	  error( LOG_NOTICE);
 
 	  switch( fork())
 	  {
@@ -166,11 +169,14 @@ int main( int argc, char * argv[])
 	  case 0:		/* I'm the child */
 	       close( keyhole);
 
-	       wrapper( conversation);
+	       wrapper( conversation, client_addr);
 				/* wrapper (q.v.) handles the conversation */
 	       break;
 	  default:		/* I'm the parent */
 	       close( conversation); 
+	       free( client);	/* prevent memory bloat */
+	       if ( client_addr != null)
+		    free( client_addr);
 	  }
      }
 }

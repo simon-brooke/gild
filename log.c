@@ -21,8 +21,8 @@
 int log( int level, char *message)
 /* hand this message over to the syslog daemon for recording */
 {
-     openlog( GILD_ID, 0, LOG_DAEMON);
+     openlog( GILD_NAME, 0, LOG_DAEMON);
      syslog( level, message);
-     closelog);
+     closelog();
 }
      
