@@ -51,7 +51,7 @@ void wrapper( int conversation)
 
      recv( hear, firstln, 80, MSG_PEEK);
 
-     puts( "looking for command");
+     printf( "looking for command to match [%s]\n", firstln);
 
      command = get_handler_command( firstln);
 				/* and find the appropriate handler */
