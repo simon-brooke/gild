@@ -1,0 +1,72 @@
+/**************************************************************************\
+*                                                                          *
+*            Project: Gild		                                   *
+*            gild.h                                                        *
+*                                                                          *
+*            Purpose: public header file for gild server.		   *
+*                                                                          *
+*            Author   : Simon Brooke                                       *
+*            Copyright: (c) Simon Brooke 1997                              *
+*            Version  : 0.1                                                *
+*            Created  : 6th October 1997				   *
+*                                                                          *
+\**************************************************************************/
+
+/* $Header$ */
+
+#include <stdio.h>
+#include <errno.h>
+#include <regex.h>
+#include <signal.h>
+#include <string.h>
+#include <syslog.h>
+#include <arpa/inet.h>
+#include <linux/in.h>
+#include <netinet/in.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <sys/socket.h>
+
+
+#define GILD_NAME 	"gild"
+#define GILD_VERSION 	"$Revision$"
+#define GILD_ID 	"gild $Revision$"
+
+#define CONFIG_PATH "/usr/local/etc/gild/gild.conf"
+#define DEFAULT_PORT_NO 8421
+#define MAX_PENDING_REQUESTS 5
+
+#define STDIN_FILENO 0
+#define STDOUT_FILENO 1
+#define STDERR_FILENO 2
+
+#define ever (;;)
+#define null (((void *) 0))
+
+
+typedef struct handler
+{
+     struct handler * next;	/* next one down the chain */
+     char * protocol;		/* a name for the protocol handled  */
+     regex_t * pattern;		/* the pattern to match to select this
+				   handler */
+     char * command;		/* the command to invoke this handler */
+     int timeout;		/* how long to allow for this handler to
+				   complete, or 0 if infinite */
+} handler;
+
+void error( int severity);
+/* log the current contents of errorBuff and then if severity is bad die */
+
+handler * get_handler( char * match);
+/* find a handler whose pattern matches match, and return it's command */
+
+int log( int level, char *message);
+/* hand this message over to the syslog daemon for recording */
+
+int parse_config( char * path);
+/* parse the config file and identify the handlers I handle */
+
+void wrapper( int conversation, char * client_id);
+/* conversation is the handle on an open socket communicating with a
+   client. */
