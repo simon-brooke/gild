@@ -119,6 +119,8 @@ int main( int argc, char * argv[])
      setsid();			/* release the controlling tty */
 #endif
 
+     signal( SIGCHLD, SIG_IGN); /* allow chidren to die naturally */
+
      if ( listen( keyhole, MAX_PENDING_REQUESTS) == -1)
      {
 	  sprintf( errorBuff, "failed in listen()?");

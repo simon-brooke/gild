@@ -21,8 +21,9 @@ clean:
 	rm core *.o $(TARGETS)
 
 install: $(TARGETS)
-	install --strip $(TARGETS) gild.conf $(HOMEDIR)
-	install handlers/* $(HOMEDIR)/handlers
+	install --strip $(TARGETS) $(HOMEDIR)
+	install gild.conf $(HOMEDIR)
+	cd handlers; make install
 
 version: $(TARGETS)
 	cvs commit gild.c wrapper.c config.c log.c Makefile gild.h \

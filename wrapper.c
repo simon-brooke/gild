@@ -14,6 +14,8 @@
 *                                                                          *
 \**************************************************************************/
 
+/* $Header */
+
 #include "gild.h"
 
 extern char errorBuff[ 1024];
@@ -35,8 +37,6 @@ void wrapper( int conversation, char * client_id)
      char firstln[ 1024];
      char * exec_args[1];	/* 'arguments' to pass to execve */
      handler * command = null;
-     pid_t child_pid;		/* the process number of the spawned child */
-     int child_status;		/* the status returned by wait() */
 
      recv( conversation, firstln, 80, MSG_PEEK);
 				/* get the first thing the client
@@ -71,55 +71,25 @@ void wrapper( int conversation, char * client_id)
 	  setenv( "REMOTE_HOST", client_id, 1);
 				/* set up the handler environment */
 
-	  if ( command->timeout != 0)
-				/* prevent runaway processes; if a
-				   timeout has been specified for this
-				   handler, enforce it */
-	  {
-	       signal( SIGALRM,(void (*)())die);
-	       alarm( command->timeout);
-	  } 
-
-	  child_pid = fork();
-
-	  switch ( child_pid)
-	  {
-	  case -1:		/* blew it; whinge and die */
-	       sprintf( errorBuff, "failed to fork in wrapper()");
-	       error( LOG_ERR);
-	       break;
-	  case 0:		/* we're the child process */
-	       sprintf( errorBuff, 
-		       "using handler '%s' [%d] to handle %s request from %s", 
-		       command->command, ( int)getpid(), command->protocol, 
-		       client_id);
-	       error( LOG_NOTICE);
+	  sprintf( errorBuff, 
+		  "using handler '%s' [%d] to handle %s request from %s", 
+		  command->command, ( int)getpid(), command->protocol, 
+		  client_id);
+	  error( LOG_NOTICE);
 				/* log the request, and... */
 
-	       exec_args[ 0] = command->command;
-	       exec_args[ 1] = null;
+	  exec_args[ 0] = command->command;
+	  exec_args[ 1] = null;
 				/* set up the dummy arguments */
 
-	       if ( execve( command->command, 
-			   exec_args, environ) == -1)
+	  if ( execve( command->command, exec_args, environ) == -1)
 				/* ...execute the command (shouldn't return) */
-	       {		/* if it did we've got an error */
-		    sprintf( errorBuff, 
-			"error [errno %d] whislt execing handler '%s' [%d]\n",
-			    errno, command->command, child_pid),
-		    error( LOG_ERR);
-	       }		    
-	       break;
-
-	  default:		/* we're the parent */
-	       wait( &child_status);
-				/* hang around for the child to die */
+	  {			/* if it did we've got an error */
 	       sprintf( errorBuff, 
-		       "handler '%s' [%d] completed; wrapper exiting normally",
-		       command->command, child_pid),
-	       error( LOG_NOTICE);
-	       break;
-	  }
+		       "error [errno %d] whislt execing handler '%s' [%d]\n",
+		       errno, command->command, ( int)getpid()),
+	       error( LOG_ERR);
+	  }		    
      }
 
      exit( 0);
