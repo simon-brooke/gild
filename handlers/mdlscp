@@ -1,0 +1,316 @@
+#!/usr/bin/gcl -f
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;									;;
+;;	mdlscpd.lsp							;;
+;;									;;
+;;	Purpose: a GILD handler for Multi-Dimensional Locations System	;;
+;;	Concept Protocol						;;
+;;									;;
+;;	Author:	    Simon Brooke					;;
+;;	Created:    November 16 1997					;;
+;;	Copyright:  (c) 1997 Simon Brooke. Distributed without any	;;
+;;		    waranties whatever; free for any use at your own	;;
+;;		    risk						;;
+;;									;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;; $Header$
+
+
+;; concept is represented as (token children definitions), where children is
+;; (concept...) and definitions is ((language-token word ...)...)
+
+(make-package "Multidimensional Location System Concept Protocol"
+	      :nicknames '("mdlscp"))
+(in-package "mdlscp")
+
+
+(setq *server-name* "CL-MDLSCPD/0.1")
+
+(setq *standard-responses*
+  '(
+    (200 " Query Satisfied")
+    (201 " Limit was reached before Depth") 
+    (202 " Depth could not be reached")
+    (210 " Preferred natural language not available")
+    (211 " Preferred language not available, limit reached before depth")
+    (212 " Preferred language not available, depth could not be reached")
+    (400 " Concept unknown")
+    (401 " Service refused: private")
+    (402 " Service refused: too busy") 
+    (500 " Server error")))
+
+
+(defun read-line-to-list (&optional stream)
+  "Read a line from stream and return the result as a list of tokens"
+  (let 
+      ((input 
+	(substitute			;; OK, this is a *horrible* fudge
+	 #\@ #\:			;  The standard reader can't cope
+	 (read-line stream))))		;  with colons, and I need it to.
+					;  It would be better to use a
+					;  special read-table...
+   (cond
+    ((> (length input) 0)
+     (with-input-from-string (s input)
+      (do ((l nil (append l (list token)))
+	   (token (read s) (read s)))
+	  ((null (listen s)) (append l (list token)))))))))
+
+(defun r-e-p (&optional stream)
+  "Read a protocol query from stream and print the result there"
+   (let ((lines 
+	  (do ((lines nil (cons line lines))
+	       (line (read-line-to-list stream)(read-line-to-list stream)))
+	      ((null line) lines)))) 
+     (cond (lines
+	    (let
+		((action (cdr (assoc 'action@ lines)))
+		 (concept (cadr (assoc 'concept@ lines)))
+		 (iread (cdr (assoc 'i_read@ lines)))
+		 (depth (cadr (assoc 'depth@ lines)))
+		 (limit (cadr (assoc 'limit@ lines))))
+	      (handle-query *lattice* action concept 
+		iread depth limit stream))))))
+
+(defun handle-query (lattice &optional action concept iread depth limit stream)
+  "Run an MDLSCP query against lattice and return the result"
+    (cond 
+     ((eq action 'define)
+      (handle-define lattice concept iread))
+					; it's a define query
+     ((or 
+       (null concept)			; query seeks default concept
+       (eq concept (car lattice)))	; query seeks top of lattice
+      (respond lattice iread depth limit stream))
+					; just respond
+     (t					; otherwise
+      (handle-query
+       (search-concept-lattice		; find the right place in the lattice
+	lattice				; and try again
+	concept)
+       'query concept iread (or depth 4) (or limit 1024) stream))))
+
+
+(defun respond (lattice iread depth limit &optional stream)
+  "Format this lattice segment into an appropriate mdls response and print it"
+  (let* 
+      ((lat 
+	(prepare-output			; reorder the data for output
+	 lattice iread depth))
+       (d (lattice-depth lattice))	; check the depth of what we got
+       (n (lattice-nodes lattice))	; and the number of nodes..
+       (r (cond				; set the response code
+	   ((null lat) 400)		; didn't find anything 
+	   ((> depth d) 202)		; didn't get the requested depth
+	   ((> n limit) 201)		; got more than the requested nodes
+	   (t 200))))			; got just what was asked for
+    (princ "MDLSCP/1.0 " stream)
+    (princ *server-name* stream)	; print identifier
+    (terpri stream)
+    (princ r stream)			; print the result code
+    (princ (cadr (assoc r *standard-responses*)) stream)
+    (terpri stream)			; and a human-readable interpretation
+    (cond (lat (princ lat)) stream)	; print the result
+    (terpri stream)
+    r))					; and return the result code
+
+(defun lattice-enumerate (lattice fn)
+  "abstract function used internally by lattice-nodes and lattice-depth"
+  (cond 
+   ((null (concept-children lattice)) 0)
+   (t
+    (1+ 
+     (apply fn
+      (mapcar
+       #'(lambda (child) (lattice-enumerate child fn))
+       (concept-children lattice)))))))
+   
+(defun lattice-nodes (lattice)
+  "Return the number of nodes in this lattice as an integer"
+  (lattice-enumerate lattice (symbol-function '+)))
+
+(defun lattice-depth (lattice)
+  "Return the maximum depth of this lattice as an integer"
+  (lattice-enumerate lattice (symbol-function 'max)))
+
+(defun prepare-output (lattice iread depth)
+  "Format this lattice segment into an mdlscp response"
+  (cond 
+   ((null lattice) nil)
+   (t
+    (let
+	((token
+	  (concept-token lattice))
+	 (description 
+	  (best-description 
+	   (concept-definitions lattice) 
+	   iread))
+	 (children	
+	   (mapcar 
+	    #'(lambda (child) 
+		(prepare-output child iread (1- depth)))
+	    (concept-children lattice))))
+      (cond
+       ((and children (> depth 1)) 
+	(list token description children))
+       (t (list token description)))))))
+
+
+(defun best-description (descriptions languages)
+  "Find the best of these descriptions given this set of languages"
+  (cond 
+   ((null languages) 
+    (car descriptions))			; can't find a good one so use default
+   ((assoc
+     (car languages) 
+	   descriptions))		; that's fine...
+   (t					; otherwise checkout the next best 
+    (best-description			; language.
+     descriptions (cdr languages)))))  
+
+(defun search-concept-lattice (lattice concept)
+  "Search this lattice for this concept, breadth first"
+  (do ((to-search (list lattice)
+		  (cdr 
+		   (append to-search 
+			   (concept-children (car to-search)))))) 
+      ((or (null to-search)
+       (eq (concept-token (car to-search)) concept))
+       (cond (to-search (car to-search))))))
+  
+(defmacro concept-token (concept)
+    (list 'car concept))
+
+(defmacro concept-children (concept)
+  (list 'cadr concept))
+
+(defmacro concept-definitions (concept)
+  (list 'caddr concept))
+
+(defmacro concept-addchild (concept child)
+  (list 'push child (list 'concept-children concept)))
+
+(defun addconcept (lattice below new-concept)
+  "Non-destructively add new-concept as a child of below in this lattice"
+  (cond ((null lattice) nil)
+	((eq (concept-token lattice) below)
+	 (list (concept-token lattice) 
+	       (cons new-concept (concept-children lattice))
+	       (concept-definitions lattice)))
+	(t 
+	 (list 
+	  (concept-token lattice)
+	  (mapcar #'(lambda 
+		       (child) 
+		     (addconcept child below new-concept))
+		  (concept-children lattice))
+	  (concept-definitions lattice)))))
+
+
+
+(setq *lattice*			; for test purposes
+  '(everything
+    (
+     )
+    ((english abstract top level concept)
+     (french tout le monde et ces choses))
+    )
+  )
+
+(setq *lattice*
+  (addconcept *lattice* 'everything
+		   '(event () 
+		     ((english occurence located in time)))))
+
+(setq *lattice*
+  (addconcept *lattice* 'event
+		   '(public-event () 
+		     ((english an event to which members of the public 
+		       are invited)))))
+
+(setq *lattice*
+  (addconcept *lattice* 'event
+		   '(private-event () 
+		     ((english an event to which only specified people
+		       are invited)))))
+
+(setq *lattice*
+  (addconcept *lattice* 'public-event
+		   '(public-entertainment () 
+		     ((english an event in which performers seek to amuse 
+		       an audience)))))
+
+
+(setq *lattice*
+  (addconcept *lattice* 'public-event
+		   '(public-meeting ()
+		     ((english an event at which members of the public 
+		       discuss some matter of common interest)))))
+
+(setq *lattice*
+  (addconcept *lattice* 'public-entertainment
+		   '(musical-entertainment ()
+		     ((english an entertainment at which perfomers 
+		       play music)))))
+
+
+(setq *lattice*
+  (addconcept *lattice* 'musical-entertainment
+		   '(concert
+		     ()
+		     ((english a musical entertainment at which the 
+		       audience listens)
+		      (french une xxx musical que les gens ecoute)
+		     ))))
+
+
+(setq *lattice*
+  (addconcept *lattice* 'musical-entertainment
+		   '(dance
+		     (
+		      (ceilidh
+		       ()
+		       ((english a scottish form of dance at which the 
+				 distinction between audience and performers 
+				 may be blurred))
+		       )
+		      )
+		     ((english a musical entertainment at which the 
+		       audience dances))
+		     )))
+
+
+(setq *lattice*
+  (addconcept *lattice* 'public-entertainment
+		   '(literary-entertainment
+		     (
+		      (play
+		       (
+			(opera
+			 ()
+			 ((english a formal dramatic performance in which 
+				   the words are sung))
+			 )
+			(musical
+			 ()
+			 ((english a dramatic performance interspersed 
+				   with songs))
+			 )
+			)
+		       ((english a live dramatic performance))
+		       )
+		      (poetry-reading
+		       ()
+		       ((english an event at which poetry is read))
+		       )
+		      )
+		     ((english an entertainment based on speach))
+		     )))
+
+
+(r-e-p)					; one shot
+
+
+
