@@ -1,0 +1,142 @@
+#!/bin/bash
+
+#########################################################################
+#									#
+#            Project: Gild		                                #
+#            crp							#
+#                                                                       #
+#            Purpose: CRP/1.0 handler for GILD. 			#
+#                                                                       #
+#            Author   : Simon Brooke                                    #
+#            Copyright: (c) Simon Brooke 1997                           #
+#            Version  : 0.1                                             #
+#            Created  : 17th October 1997				#
+#                                                                       #
+#########################################################################
+
+# $Header$
+
+SERVER_ROOT="/usr/local/etc/gild/crp"
+AGENT_NAME="GILD_crp_handler/0.1"
+PROTOCOL="CRP/1.0"
+TMP=$SERVER_ROOT/tmp/crp$$
+HOST_NAME=`hostname -f`
+
+now=`date "+%d %b %Y %k-%M-%S"`		# time stamp for this request
+id_date=`date "+%s"`
+id_tag="$$-$id_date"			# unique tag for this request
+
+read identifier	client			# Read the protocol and client
+					# identifiers...
+
+identifier=`echo $identifier | stripctrl`
+client=`echo $client | stripctrl`	# and strip annoying control chars!
+
+check=`echo $identifier | awk 'BEGIN { FS = "/" } \
+    $1 != "CRP" { print "410 Bad Protocol" } \
+    $2 >= 2 { printf "411 Cannot handle protocol version (max 1.0)" }'`
+					# can we handle it?
+
+echo "$PROTOCOL $AGENT_NAME"		# Print our protocol and agent
+					# identifiers
+
+if [ "$check" != "" ]			# Whoops! Can't handle that
+then					# Whinge to the client...
+    echo $check
+    result=`echo $check | awk '{print $1}'`
+    echo "$now: $id_tag: $result: $REMOTE_HOST: $client: - : -" >> \
+	$SERVER_ROOT/log		# Log the result...
+    exit 1				# and die.
+fi
+
+done=false				# Haven't read all the headers yet...
+read token value			# So start reading
+
+while [ "$done" = "false" ]
+do
+    token=`echo $token | stripctrl`	# Strip those ****** control chars...
+    value=`echo $value | stripctrl`
+
+    case $token in			# Sort the header
+	"Request:"|"REQUEST:"|"request:" )  p_request=$value;;
+	"User:"|"USER:"|"user:" )	    p_user=$value;;
+	"Class:"|"CLASS:"|"class:" )	    p_class=$value;;
+	"Mod:"|"MOD:"|"mod:" )		    p_mod=$value;;
+	"End."|"END."|"end."|"" )	    done=true;;
+	# yes, I know we're supposed to handle arbitrary numbers of MOD lines
+    esac
+
+    read token value			# Get the next token/value pair
+done
+
+result=200
+
+if [ "$p_request" = "" ]		# Do we have a request?
+then
+    echo "402 Insufficient information supplied"
+    result=402
+fi
+
+if [ "$p_user" = "" ]			# Do we have a user?
+then
+    echo "402 Insufficient information supplied"
+    result=402
+fi
+
+if [ "$p_class" = "" ]			# Do we have a class?
+then
+    echo "402 Insufficient information supplied"
+    result=402
+fi
+
+if [ $result -eq 200 ]
+then
+    p_mail=`ldapsearch -h caleddon -b "c=SCOT" "cn=$p_user" mail |\
+	grep '^mail=' | awk -F= '{print $2}'`
+
+    if [ "$p_mail" = "" ]
+    then
+	echo "400 User unknown"
+	result=400
+    fi
+fi
+
+if [ $result -eq 200 ]
+then
+    if [ ! -f $SERVER_ROOT/classes/$p_class ]
+    then
+	echo "401 Class unknown"
+	result=401
+    fi
+fi
+
+if [ $result -eq 200 ]
+then
+    echo "To: $p_mail"						> $TMP
+    echo "Reply_to: confirmd@$HOST_NAME"			>> $TMP
+    echo "Subject: Please confirm your request"			>> $TMP
+    echo ""							>> $TMP
+    echo "Dear $p_user"						>> $TMP
+    echo ""							>> $TMP
+    sed "s=$p_mod=g" $SERVER_ROOT/classes/$p_class		>> $TMP
+    echo ""							>> $TMP
+    echo "Reply to this mail with an 'x' in the box below"	>> $TMP
+    echo "to confirm this request:"				>> $TMP
+    echo "[ ] Yes, please carry out request $id_tag "		>> $TMP
+
+    /usr/lib/sendmail simon@jasmine.org.uk < $TMP
+
+    if [ $? -eq 0 ]
+    then
+        echo "200 Request accepted"
+    else
+	echo "500 Server error"
+	result=500
+    fi
+fi
+
+echo "$now: $id_tag: $result: $REMOTE_HOST: $client: $p_class: $p_user" >> \
+	$SERVER_ROOT/log
+
+exit 0				    # yes, I know it _shouldn't_ be necessary
+
