@@ -28,22 +28,20 @@ void wrapper( int conversation)
 {
      char firstln[ 1024];
      char * command;
-     int i, hear, say = conversation;
-     FILE * c_rx, * c_tx;
 
      printf( "wrapper started with fdes [%d]\n",
 		  conversation); 
 
-#ifdef glubba
-     hear = dup( conversation);	/* creat two handles on conversation */
-     say = dup( conversation);	/* one for reading and one for writing */
-#endif
+     recv( conversation, firstln, 80, MSG_PEEK);
+				/* get the first thing the client
+				 says, but leave it on the input
+				 stream for the handler. */
 
      if ( dup2( conversation, STDIN_FILENO) == -1)
      {
 	  sprintf( errorBuff, 
 		  "failed to duplicate conversation [%d] onto stdin: %s",
-		  hear, strerror( errno));
+		  conversation, strerror( errno));
 	  error( FATAL_ERROR);
      }
 
@@ -51,11 +49,9 @@ void wrapper( int conversation)
      {
 	  sprintf( errorBuff, 
 		  "failed to duplicate conversation [%d] onto stdout: %s",
-		  say, strerror( errno));
+		  conversation, strerror( errno));
 	  error( FATAL_ERROR);
      }
-
-     gets( firstln);
 
      command = get_handler_command( firstln);
 				/* and find the appropriate handler */
