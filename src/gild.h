@@ -21,7 +21,7 @@
 #include <string.h>
 #include <syslog.h>
 #include <arpa/inet.h>
-#include <linux/in.h>
+/* #include <linux/in.h> */
 #include <netinet/in.h>
 #include <sys/types.h>
 #include <sys/socket.h>

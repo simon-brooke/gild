@@ -1,4 +1,4 @@
-# Makefile for itinerary engine utilities
+# Makefile for Generic Internet Listener Daemon
 # $Header$
 
 CC= gcc
