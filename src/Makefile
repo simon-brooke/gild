@@ -6,7 +6,7 @@ CFLAGS= -g
 LD= gcc
 LDFLAGS= -g 
 HOMEDIR= /usr/local/etc/gild
-TARGETS= gild
+TARGETS= ../bin/gild
 COMPONENTS = gild.o wrapper.o config.o log.o
 
 all: $(TARGETS)
@@ -14,11 +14,12 @@ all: $(TARGETS)
 .c.o:
 	$(CC) $(CFLAGS) -c $<
 
-gild: $(COMPONENTS) gild.h Makefile 
+../bin/gild: $(COMPONENTS) gild.h Makefile 
 	$(LD) $(LDFLAGS) -o gild $(COMPONENTS)
+	mv gild ../bin
 
 clean:
-	rm core *.o $(TARGETS)
+	rm core $(COMPONENTS) $(TARGETS)
 
 install: $(TARGETS)
 	install --strip $(TARGETS) $(HOMEDIR)
