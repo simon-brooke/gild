@@ -1,0 +1,86 @@
+#!/bin/bash
+
+#########################################################################
+#									#
+#            Project: Gild		                                #
+#            http							#
+#                                                                       #
+#            Purpose: HTTP 0.9 handler for GILD. Handles http requests	#
+#		reasonably accurately, considering it's under 100 lines	#
+#		of shell-script.					#
+#                                                                       #
+#            Author   : Simon Brooke                                    #
+#            Copyright: (c) Simon Brooke 1997                           #
+#            Version  : 0.1                                             #
+#            Created  : 10th October 1997				#
+#                                                                       #
+#########################################################################
+
+# $Header$
+
+SERVER_ROOT="/usr/local/etc/gild/httpd"
+DOCUMENT_ROOT="$SERVER_ROOT/htdocs/"
+AGENT_NAME="GILD_http_handler/0.1"
+
+now=`date "+%a, %d %b %Y %k-%M-%S"`
+
+read command file protocol
+
+case $command in
+    "HEAD"|"Head"|"head")   ;;		# that's OK;
+    "GET"|"Get"|"get"   )   ;;		# So's that...
+    *	)	cat $SERVER_ROOT/error/501.html;
+		echo "$now: $REMOTE_HOST: Unknown command [$command]" \
+		    >> $SERVER_ROOT/logs/error_log;
+		exit 0;;  
+esac
+
+rq_file=$file
+
+if [ -n $file ]
+then
+    file=`echo "$DOCUMENT_ROOT$file"`
+
+    if [ -d $file ]			# if it's a directory, look for it's
+					# index...
+    then
+	file=`echo "$file/index.html"`
+    fi
+
+    if [ -r $file ]
+    then
+	length=`ls -l $file | awk '{print $5}'`
+
+	ftype=`file $file | sed 's/[^:]*: //' | awk '{ print $1}'`
+
+	case $ftype in
+	    "HTML"	)   type=text/html;;
+	    "ascii"	)   type=text/plain;;
+	    "english"	)   type=text/plain;;
+	    "a"		)   type=text/plain;;	# probably a shell script!
+	    "GIF"	)   type=image/gif;;
+	    "JPEG"	)   type=image/jpeg;;
+	    *		)   type=x-unknown/unknown;;
+	esac
+
+	echo "HTTP/0.9 200 OK"
+	echo "Date: $now"
+	echo "Server: $AGENT_NAME"
+	echo "Content-Type: $type"
+	echo "Content-Length: $length"
+	echo ""
+
+	case $command in
+	    "HEAD"|"Head"|"head")   exit 0;;
+	    "GET"|"Get"|"get"	)   cat $file;;
+	    *			)   echo "Whoops! Unexpected error!";;
+	esac
+
+	echo "$now: $REMOTE_HOST: $command: $rq_file" \
+		    >> $SERVER_ROOT/logs/access_log
+    else
+	cat $SERVER_ROOT/error/404.html
+	echo "$now: $REMOTE_HOST: No such file [$rq_file]" \
+		    >> $SERVER_ROOT/logs/error_log
+    fi
+fi
