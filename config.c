@@ -40,14 +40,13 @@ int parse_config( char * path)
      while( ! feof( configFile))
      {
 	  char buff[ 1024], protocol[ 1024], pattern[ 1024], command[ 1024];
-	  int port;
 	  
 	  fgets( buff, 1024, configFile);
 				/* get a line from the config file */
 	  if ( buff[ 0] == '#');
 				/* it's a comment, and can be ignored */
-	  else if ( fscanf( configFile, "%s %d %s %s", protocol, &port,
-		      pattern, command) == 4)
+	  else if ( fscanf( configFile, "%s %s %s", protocol,
+		      pattern, command) == 3)
 				/* otherwise look for four fields. If
                                    we find them... */
 	  {
@@ -69,7 +68,6 @@ int parse_config( char * path)
 	       regcomp( patternBuff, pattern, 
 		       REG_ICASE | REG_NEWLINE);
 				/* and load it with the values we found */
-	       newhandler->port = port;
 	       newhandler->protocol = strdup( protocol);
 	       newhandler->pattern = patternBuff;
 	       newhandler->command = strdup( command);
@@ -84,21 +82,6 @@ int parse_config( char * path)
 		       "registering handler [%s] for protocol %s", 
 		       newhandler->command, newhandler->protocol);
 	       error( NOTICE);
-
-				/* ultimately we will deal with
-                                   listening on multiple ports, but
-                                   not yet! */
-	       if ( newhandler->next != null)
-	       {
-		    if ( newhandler->next->port != port)
-		    {
-			 sprintf( errorBuff,
-				 "port for %s [%d] differs from %s [%d] - this version of GILD only handles one port!", 
-				 protocol, port, newhandler->next->protocol,
-				 newhandler->next->port);
-			 error( FATAL_ERROR);
-		    }
-	       }		 
 	  }
      }
      return ( n);		/* say how many we found */
