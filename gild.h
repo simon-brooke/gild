@@ -23,7 +23,7 @@
 
 
 #define CONFIG_PATH "/usr/local/etc/gild/gild.conf"
-#define DEFAULT_PORT_NO 1984
+#define DEFAULT_PORT_NO 8421
 #define MAX_PENDING_REQUESTS 5
 
 #define STDIN_FILENO 0
@@ -43,7 +43,6 @@
 typedef struct handler
 {
      struct handler * next;	/* next one down the chain */
-     int    port;		/* the port on which I listen */
      char * protocol;		/* a name for the protocol handled  */
      regex_t * pattern;		/* the pattern to match to select this
 				   handler */
