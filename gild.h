@@ -12,14 +12,10 @@
 *                                                                          *
 \**************************************************************************/
 
-#define _POSIX_SOURCE
-/* this is a fudge. The whole thing depends on fdopen, and I'm having
-   great difficulty making it work */
-
 #include <stdio.h>
 #include <errno.h>
 #include <string.h>
-#include <regexp.h>
+#include <regex.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 
@@ -30,7 +26,10 @@
 #define DEFAULT_PORT_NO 1984
 #define MAX_PENDING_REQUESTS 5
 
-#define null (((void *) 0))
+#define STDIN_FILENO 0
+#define STDOUT_FILENO 1
+#define STDERR_FILENO 2
+
 
 #define FATAL_ERROR 1
 #define NOTICE 0
@@ -38,13 +37,15 @@
 #define DEBUG 1
 
 #define ever (;;)
+#define null (((void *) 0))
+
 
 typedef struct handler
 {
      struct handler * next;	/* next one down the chain */
      int    port;		/* the port on which I listen */
      char * protocol;		/* a name for the protocol handled  */
-     regexp * pattern;		/* the pattern to match to select this
+     regex_t * pattern;		/* the pattern to match to select this
 				   handler */
      char * command;		/* the command to invoke this handler */
 } handler;
@@ -55,7 +56,7 @@ void error( int severity);
 char * get_handler_command( char * match);
 /* find a handler whose pattern matches match, and return it's command */
 
-void parse_config( char * path);
+int parse_config( char * path);
 /* parse the config file and identify the handlers I handle */
 
 void wrapper( int conversation);

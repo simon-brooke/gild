@@ -74,7 +74,16 @@ int main( int argc, char * argv[])
 	  }
      }
 
-     parse_config( configPath);
+     if ( parse_config( configPath) == 0)
+     {
+	  sprintf( errorBuff, "failed to load any handlers");
+	  error( FATAL_ERROR);
+     }
+
+     port = handlers->port;	/* for now we'll listen on the port of
+				   the last registered handler --
+				   after all, we bomb out if this is
+				   different from any of the others */
 
      keyhole = socket( AF_INET, SOCK_STREAM, 0);
      if ( keyhole == -1)
@@ -114,7 +123,7 @@ int main( int argc, char * argv[])
 	  sprintf( errorBuff, "failed in listen()?");
 	  error( FATAL_ERROR);
      }
-     sprintf( errorBuff, "GILD: awaiting requests");
+     sprintf( errorBuff, "GILD: awaiting requests on port %d", port);
      error( NOTICE);
 
      for ever

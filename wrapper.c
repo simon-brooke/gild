@@ -34,53 +34,20 @@ void wrapper( int conversation)
      printf( "wrapper started with fdes [%d]\n",
 		  conversation); 
 
+#ifdef glubba
      hear = dup( conversation);	/* creat two handles on conversation */
      say = dup( conversation);	/* one for reading and one for writing */
-
-#ifdef globba
-     for( i = 0; ( i < 1024 ) && ( ( i == 0) || ( firstln[ i - 1] > ' ')); i++)
-     {
-	  read( hear, ( char *)firstln + i, 1);
-				/* read a control-terminated line from the
-                                   conversation, one byte at a time
-                                   (prolly a better way of doing this) */
-	  puts( firstln);
-     }
-     firstln[ i] = '\0';	/* terminate the string */
 #endif
 
-     recv( hear, firstln, 80, MSG_PEEK);
-
-     printf( "looking for command to match [%s]\n", firstln);
-
-     command = get_handler_command( firstln);
-				/* and find the appropriate handler */
-
-     printf( "got command [%s]\n", command);
-
-     if ( ! command)	/* didn't find one */
-     {
-	  sprintf( errorBuff, "no handler registered for %s", firstln);
-	  error( FATAL_ERROR);
-     }
-     else			/* did find one */
-     {
-	  sprintf( errorBuff, "using handler %s for protocol %s", 
-		  command, firstln);
-	  error( FATAL_ERROR);
-     }
-
-     recv( hear, firstln, 1024, 0);
-     exit( 0);
-
-     if ( dup2( hear, 0) == -1)
+     if ( dup2( conversation, STDIN_FILENO) == -1)
      {
 	  sprintf( errorBuff, 
 		  "failed to duplicate conversation [%d] onto stdin: %s",
 		  hear, strerror( errno));
 	  error( FATAL_ERROR);
      }
-     dup2( say, 1);
+
+     if ( dup2( conversation, STDOUT_FILENO) == -1)
      {
 	  sprintf( errorBuff, 
 		  "failed to duplicate conversation [%d] onto stdout: %s",
@@ -88,11 +55,20 @@ void wrapper( int conversation)
 	  error( FATAL_ERROR);
      }
 
-/*     gets( firstln); */
-     puts( "hello!\n");
-/*     puts( firstln); */
+     gets( firstln);
 
-     puts("\tClosing...");
+     command = get_handler_command( firstln);
+				/* and find the appropriate handler */
+     if ( ! command)	/* didn't find one */
+     {
+	  sprintf( errorBuff, "no handler registered for %s", firstln);
+	  error( FATAL_ERROR);
+     }
+     else			/* did find one */
+     {
+	  system( command);
+     }
+
      exit( 0);
 }
 

@@ -18,12 +18,12 @@ extern char errorBuff[];	/* where I assemble logging messages */
 handler * handlers = ( handler *) null;
 				/* the list of handlers I handle */
 
-void parse_config( char * path)
+int parse_config( char * path)
 /* parse the config file and identify the handlers I handle */
 {
      FILE * configFile;		/* the file handle from which to load config */
      char * line[ 1024];	/* a buffer to read lines into */
-     
+     int n = 0;			/* number of handlers we find */
 
      sprintf( errorBuff, "Loading configuration from %s", path);
      error( NOTICE);
@@ -54,6 +54,10 @@ void parse_config( char * path)
 	       handler * newhandler = 
 		    ( struct handler *) malloc( sizeof( struct handler));
 				/* create a handler */
+	       struct re_pattern_buffer * patternBuff = 
+		    ( struct re_pattern_buffer *) 
+			 malloc( sizeof( struct re_pattern_buffer));
+				/* and reserve space for a compiled regex */
 
 	       if ( newhandler == ( handler *) null)
 	       {		/* unlikely, but... best check */
@@ -62,15 +66,19 @@ void parse_config( char * path)
 		    error( FATAL_ERROR);
 	       }
 
+	       regcomp( patternBuff, pattern, 
+		       REG_ICASE | REG_NEWLINE);
 				/* and load it with the values we found */
 	       newhandler->port = port;
 	       newhandler->protocol = strdup( protocol);
-	       newhandler->pattern = regcomp( pattern);
+	       newhandler->pattern = patternBuff;
 	       newhandler->command = strdup( command);
 				/* then splice it into the handler chain */
 	       newhandler->next = handlers;
 	       handlers = newhandler;
 
+	       n ++;		/* increment the counter */
+	       
 				/* and log it. */
 	       sprintf( errorBuff, 
 		       "registering handler [%s] for protocol %s", 
@@ -93,6 +101,7 @@ void parse_config( char * path)
 	       }		 
 	  }
      }
+     return ( n);		/* say how many we found */
 }
 
 char * get_handler_command( char * match)
@@ -100,12 +109,13 @@ char * get_handler_command( char * match)
 {
      handler * h;
      char * command = null;
+     regmatch_t pmatch[ 2];
 
      for ( h = handlers; ( command == null) && ( h != null); h = h->next)
 				/* scan down the list of handlers looking
 				   for a match... */
      {
-	  if ( 0) /* ( regexec( h->pattern, match)) */
+	  if ( regexec( h->pattern, match, 2, pmatch, 0) == 0)
 	  {
 	       command = h->command;
 	  }
