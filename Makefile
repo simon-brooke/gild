@@ -5,7 +5,7 @@ CC= gcc
 CFLAGS= -g
 LD= gcc
 LDFLAGS= -g 
-BINDIR= /usr/local/bin
+HOMEDIR= /usr/local/etc/gild
 TARGETS= gild
 COMPONENTS = gild.o wrapper.o config.o log.o
 
@@ -21,7 +21,9 @@ clean:
 	rm core *.o $(TARGETS)
 
 install: $(TARGETS)
-	install --strip $(TARGETS) $(BINDIR)
+	install --strip $(TARGETS) gild.conf $(HOMEDIR)
+	install handlers/* $(HOMEDIR)/handlers
 
 version: $(TARGETS)
-	cvs commit gild.c wrapper.c config.c log.c Makefile gild.h gild.conf
+	cvs commit gild.c wrapper.c config.c log.c Makefile gild.h \
+	    gild.conf handlers

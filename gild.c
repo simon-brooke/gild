@@ -23,8 +23,6 @@ int port = DEFAULT_PORT_NO;	/* the port I shall listen on */
 char errorBuff[ 1024];		/* somewhere to assemble error messages */
 extern handler * handlers;
 				/* the list of handlers I support */
-FILE * logstream = stderr;	/* where I stick log messages */
-
 
 void error( int severity)
 /* log the current contents of errorBuff and then if severity is bad die */
@@ -48,8 +46,6 @@ int main( int argc, char * argv[])
      struct sockaddr_in * address = 
 	  ( struct sockaddr_in *)malloc( sizeof( struct sockaddr_in));
 				/* the address I bind the keyhole to */
-
-     fprintf( stderr, "%s starting...", GILD_ID);
 
      for ( arg = 1; argc > arg; arg ++)
      {				/* process arguments */
@@ -115,8 +111,11 @@ int main( int argc, char * argv[])
 
 #ifndef DEBUG
 				/* we become a real class one daemon */
-     if ( fork() != 0) exit(0);             
-				/* the parent exits */
+     if ( fork() != 0)		/* we're the parent */
+     {
+	  exit(0);		/* so die */
+     }
+				/* otherwise (we're the child)... */
      setsid();			/* release the controlling tty */
 #endif
 
@@ -171,12 +170,15 @@ int main( int argc, char * argv[])
 
 	       wrapper( conversation, client_addr);
 				/* wrapper (q.v.) handles the conversation */
+
+	       exit( 0);	/* after completing wrapper, die */
 	       break;
 	  default:		/* I'm the parent */
 	       close( conversation); 
 	       free( client);	/* prevent memory bloat */
 	       if ( client_addr != null)
 		    free( client_addr);
+	       break;
 	  }
      }
 }

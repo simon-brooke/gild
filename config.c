@@ -12,6 +12,8 @@
 *                                                                          *
 \**************************************************************************/
 
+/* $Header$ */
+
 #include "gild.h"
 
 extern char errorBuff[];	/* where I assemble logging messages */

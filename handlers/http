@@ -73,14 +73,14 @@ then
 	case $command in
 	    "HEAD"|"Head"|"head")   exit 0;;
 	    "GET"|"Get"|"get"	)   cat $file;;
-	    *			)   echo "Whoops! Unexpected error!";;
 	esac
 
 	echo "$now: $REMOTE_HOST: $command: $rq_file" \
 		    >> $SERVER_ROOT/logs/access_log
-    else
+    else			    # didn't find it; report and log
 	cat $SERVER_ROOT/error/404.html
 	echo "$now: $REMOTE_HOST: No such file [$rq_file]" \
 		    >> $SERVER_ROOT/logs/error_log
     fi
 fi
+exit 0				    # yes, I know it _shouldn't_ be necessary

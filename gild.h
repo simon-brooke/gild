@@ -40,7 +40,6 @@
 #define STDOUT_FILENO 1
 #define STDERR_FILENO 2
 
-
 #define ever (;;)
 #define null (((void *) 0))
 

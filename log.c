@@ -21,8 +21,12 @@
 int log( int level, char *message)
 /* hand this message over to the syslog daemon for recording */
 {
+#ifdef DEBUG
+     fprintf( stderr, "%s: DEBUG: %s\n", GILD_ID, message);
+#else
      openlog( GILD_NAME, 0, LOG_DAEMON);
      syslog( level, message);
      closelog();
+#endif
 }
      
