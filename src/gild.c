@@ -27,7 +27,7 @@ extern handler * handlers;
 void error( int severity)
 /* log the current contents of errorBuff and then if severity is bad die */
 {
-     log( severity, errorBuff);
+     log_message( severity, errorBuff);
 
      switch ( severity)
      {

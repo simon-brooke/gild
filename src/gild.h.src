@@ -14,14 +14,15 @@
 
 /* $Header$ */
 
+#include <stdlib.h>
 #include <stdio.h>
 #include <errno.h>
 #include <regex.h>
 #include <signal.h>
 #include <string.h>
 #include <syslog.h>
+#include <unistd.h>
 #include <arpa/inet.h>
-/* #include <linux/in.h> */
 #include <netinet/in.h>
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -29,8 +30,8 @@
 
 
 #define GILD_NAME 	"gild"
-#define GILD_VERSION 	"$Revision$"
-#define GILD_ID 	"gild $Revision$"
+#define GILD_VERSION 	"@Revision@"
+#define GILD_ID 	"gild @Revision@"
 
 #define CONFIG_PATH "/usr/local/etc/gild/gild.conf"
 #define DEFAULT_PORT_NO 8421
@@ -61,7 +62,7 @@ void error( int severity);
 handler * get_handler( char * match);
 /* find a handler whose pattern matches match, and return it's command */
 
-int log( int level, char *message);
+int log_message( int level, char *message);
 /* hand this message over to the syslog daemon for recording */
 
 int parse_config( char * path);
