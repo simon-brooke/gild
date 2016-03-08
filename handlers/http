@@ -56,10 +56,12 @@ then
 	case $ftype in
 	    "HTML"	)   type=text/html;;
 	    "ascii"	)   type=text/plain;;
+	    "ASCII"	)   type=text/plain;;
 	    "english"	)   type=text/plain;;
 	    "a"		)   type=text/plain;;	# probably a shell script!
 	    "GIF"	)   type=image/gif;;
 	    "JPEG"	)   type=image/jpeg;;
+		"PNG"	)	type=image/png;;
 	    *		)   type=x-unknown/unknown;;
 	esac
 
